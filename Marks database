@@ -1,0 +1,146 @@
+import sqlite3
+import matplotlib.pyplot as plt
+
+# Placeholder for insert_subject_marks function
+def insert_subject_marks(student_id, subject, marks):
+    connection = sqlite3.connect('student_database.db')
+    cursor = connection.cursor()
+
+    # Inserting subject-wise marks for a student
+    cursor.execute('INSERT INTO marks (student_id, subject, marks) VALUES (?, ?, ?)', (student_id, subject, marks))
+
+    connection.commit()
+    connection.close()
+
+# Placeholder for insert_student_data function
+def insert_student_data(name):
+    connection = sqlite3.connect('student_database.db')
+    cursor = connection.cursor()
+
+    # Inserting student data into the database
+    cursor.execute('INSERT INTO students (name) VALUES (?)', (name,))
+    student_id = cursor.lastrowid
+
+    connection.commit()
+    connection.close()
+
+    return student_id
+
+
+def create_table():
+    connection = sqlite3.connect('student_database.db')
+    cursor = connection.cursor()
+
+    # Dropping tables if they exist
+    cursor.execute('DROP TABLE IF EXISTS marks')
+    cursor.execute('DROP TABLE IF EXISTS students')
+
+    # Creating a table to store student data
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL
+        )
+    ''')
+
+    # Creating a table to store subject-wise marks
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS marks (
+            student_id INTEGER,
+            subject TEXT NOT NULL,
+            marks INTEGER NOT NULL,
+            FOREIGN KEY (student_id) REFERENCES students (id)
+        )
+    ''')
+
+    connection.commit()
+    connection.close()
+
+def calculate_top_five_percentage(student_id):
+    connection = sqlite3.connect('student_database.db')
+    cursor = connection.cursor()
+
+    # Retrieving marks for a specific student
+    cursor.execute('SELECT marks FROM marks WHERE student_id = ? ORDER BY marks DESC LIMIT 5', (student_id,))
+    top_five_marks = cursor.fetchall()
+
+    if not top_five_marks:
+        connection.close()
+        return 0  # Return 0 if there are no top five marks
+
+    # Extracting marks from the tuple
+    top_five_marks = [marks[0] for marks in top_five_marks]
+
+    # Calculating average percentage for the top 5 subjects
+    total_percentage = sum(top_five_marks) / len(top_five_marks)
+
+    connection.close()
+
+    return total_percentage
+
+def display_students():
+    connection = sqlite3.connect('student_database.db')
+    cursor = connection.cursor()
+
+    # Retrieving and displaying all students
+    cursor.execute('SELECT * FROM students')
+    students = cursor.fetchall()
+
+    # Lists to store data for graphical representation
+    student_names = []
+    top_five_percentages = []
+
+    for student in students:
+        student_id = student[0]
+        student_name = student[1]
+        top_five_percentage = calculate_top_five_percentage(student_id)
+
+        # Append data for graphical representation
+        student_names.append(student_name)
+        top_five_percentages.append(top_five_percentage)
+
+        print(f"ID: {student_id}, Name: {student_name}, Top 5 Subjects Average Percentage: {top_five_percentage:.2f}%")
+
+    connection.close()
+
+    # Plotting the data
+    plt.figure(figsize=(10, 6))
+    plt.bar(student_names, top_five_percentages, color='skyblue')
+    plt.xlabel('Student Name')
+    plt.ylabel('Top 5 Subjects Average Percentage')
+    plt.title('Top 5 Subjects Average Percentage for Each Student')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+
+def add_students_interactively():
+    while True:
+        student_name = input("Enter the name of the new student (or 'stop' to finish adding students): ")
+        if student_name.lower() == 'stop':
+            break
+
+        # Inserting student data into the database
+        student_id = insert_student_data(student_name)
+
+        # Asking for marks for 5 subjects
+        for _ in range(5):
+            subject = input(f"Enter the subject for {student_name}: ")
+            marks = int(input(f"Enter the marks for {subject}: "))
+            insert_subject_marks(student_id, subject, marks)
+
+        print(f"{student_name} added successfully!")
+
+def main():
+    create_table()
+
+    # Add students interactively
+    add_students_interactively()
+
+    # Displaying student data
+    print("\nStudent Data:")
+    display_students()
+
+    # ... (unchanged)
+
+if __name__ == "__main__":
+    main()
